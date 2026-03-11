@@ -66,7 +66,7 @@ Este proyecto requiere Python 3.10 o superior y las siguientes librerías:
 Proyecto original por **Matias Vasques Yelorm**. Creado para hacer más accesibles y visuales las matemáticas detrás del análisis de señales.
 
 ## Imagenes
-Las imagenes existentes en el repositorio para pruebas de epiciclos no son de autoria del autor y estan solo para probar el sitema si eres el creador original o lo conoces contactame para eliminar los archivos.
+Las imagenes existentes en el repositorio para pruebas de epiciclos no son de autoria del autor y estan solo para probar el sitema. Si eres el creador original o lo conoces contactame para eliminar los archivos.
 
 El sistema esta diceñado para meramente fines educativos y de experimentación. 
 
