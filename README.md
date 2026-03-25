@@ -10,12 +10,16 @@ La aplicación está dividida en cuatro pestañas principales:
 - **Suma de Señales**: Combina múltiples señales en el dominio del tiempo para ver su forma resultante.
 - **Tipos de Ondas Disponibles**: Seno, Coseno, Cuadrada, Triangular, Diente de Sierra, Sinc (Seno Cardinal), Exponencial, Logarítmica, Delta e Impulso Cuadrado.
 - **Controles Precisos**: Ajusta en tiempo real la frecuencia, amplitud y desplazamiento (fase) de cada señal mediante deslizadores (sliders).
-- **Límites de Tiempo**: Permite acotar cada señal a un rango de tiempo específico (ej: dibujar solo un semiciclo).
-- **Espectro de Frecuencia**: Muestra en tiempo real la magnitud de la Transformada Rápida de Fourier (FFT) de la señal sumada.
+- **Límites de Tiempo**: Permite acotar cada señal a un rango de tiempo específico. Se incluye una **visualización mejorada** mediante una "señal fantasma" (línea punteada) que muestra la señal original completa para mayor claridad visual.
+- **Modulación PAM**: Modula la señal resultante utilizando Pulse Amplitude Modulation (PAM).
+    - **PAM Natural**: La señal conserva su forma original durante el pulso.
+    - **PAM Instantánea (Sample & Hold)**: Muestra la señal al inicio de cada pulso y mantiene el valor constante.
+    - **Controles Dinámicos**: Ajusta la frecuencia del tren de pulsos (1-200 Hz) y el ciclo de trabajo (duty cycle) de 1% a 99%.
+- **Espectro de Frecuencia**: Muestra en tiempo real la magnitud de la FFT de la señal (incluyendo el efecto de la modulación PAM si está activa).
 - **Sonificación (Audio)**: Escucha la "forma" de la onda. La amplitud de la señal se mapea a tonos audibles para comprender intuitivamente la forma de la señal compuesta.
 
 ### 2. Animación de Convolución
-- **Proceso Paso a Paso**: Visualiza gráficamente cómo se calcula la convolución continua entre dos señales `f(t)` y `g(t)`.
+- **Proceso Paso a Paso**: Visualiza gráficamente cómo se calcula la convolución continua entre dos señales `f(t)` y `g(t)` en un **rango extendido de -5 a 5** para una visualización más completa.
 - **Ilustración Dinámica**: Muestra la señal fija `f(τ)`, la señal invertida y desplazada `g(t-τ)`, su producto resaltado, y el área bajo la curva resultante.
 - **Controles de Reproducción**: Pausa, reproduce o reinicia la animación para estudiar cada instante del cálculo.
 
@@ -66,7 +70,6 @@ Este proyecto requiere Python 3.10 o superior y las siguientes librerías:
 Proyecto original por **Matias Vasques Yelorm**. Creado para hacer más accesibles y visuales las matemáticas detrás del análisis de señales.
 
 ## Imagenes
-Las imagenes existentes en el repositorio para pruebas de epiciclos no son de autoria del autor y estan solo para probar el sitema. Si eres el creador original o lo conoces contactame para eliminar los archivos.
+Las imagenes existentes en el repositorio para pruebas de epiciclos no son de autoria del autor y estan solo para probar el sitema si eres el creador original o lo conoces contactame para eliminar los archivos.
 
-El sistema esta diceñado para meramente fines educativos y de experimentación. 
-
+El sistema esta diceñado para meramente fines educativos y de experimentación.
