@@ -19,7 +19,6 @@ GLOBAL_THEME = {
     "sig_sec": QColor("#00aa00"),  
     "sig_res": QColor("#00ff00"),  
 }
-
 # All available signal types
 SIGNAL_TYPES = [
     "Seno", "Coseno", "Cuadrada", "Triangular", "Diente sierra",
@@ -54,6 +53,12 @@ class SignalObject:
             data[mask] = 0.0
         
         return data
+
+    def get_data_unlimited(self, t):
+        """Return signal data WITHOUT applying time limits (for ghost curve)."""
+        if not self.active: return np.zeros_like(t)
+        t_shifted = t - self.shift
+        return self._generate_raw(t_shifted, t)
 
     def _generate_raw(self, t_shifted, t):
         if self.type == 'Seno':
@@ -210,7 +215,7 @@ class FFTTabWidget(QtWidgets.QWidget):
         layout = QtWidgets.QHBoxLayout(self)
 
         sidebar = QtWidgets.QWidget()
-        sidebar.setFixedWidth(300)
+        sidebar.setFixedWidth(340)
         self.side_layout = QtWidgets.QVBoxLayout(sidebar)
         btn_add = QtWidgets.QPushButton("+ Añadir Señal")
         btn_add.clicked.connect(self.add_signal)
@@ -223,7 +228,63 @@ class FFTTabWidget(QtWidgets.QWidget):
         btn_stop = QtWidgets.QPushButton("⏹ Detener Audio")
         btn_stop.clicked.connect(self.stop_audio)
         self.side_layout.addWidget(btn_stop)
-        
+
+        # ── PAM Modulation Section ──
+        pam_frame = QtWidgets.QFrame()
+        pam_frame.setFrameShape(QtWidgets.QFrame.Shape.StyledPanel)
+        pam_layout = QtWidgets.QVBoxLayout(pam_frame)
+
+        self.chk_pam = QtWidgets.QCheckBox("Habilitar Modulación PAM")
+        self.chk_pam.stateChanged.connect(self.update_plots)
+        pam_layout.addWidget(self.chk_pam)
+
+        self.pam_container = QtWidgets.QWidget()
+        pam_inner = QtWidgets.QVBoxLayout(self.pam_container)
+        pam_inner.setContentsMargins(0, 0, 0, 0)
+
+        pam_inner.addWidget(QtWidgets.QLabel("Tipo de PAM:"))
+        self.combo_pam = QtWidgets.QComboBox()
+        self.combo_pam.addItems(["PAM Natural", "PAM Instantánea"])
+        self.combo_pam.currentTextChanged.connect(self.update_plots)
+        pam_inner.addWidget(self.combo_pam)
+
+        pam_inner.addWidget(QtWidgets.QLabel("Frecuencia pulsos (Hz):"))
+        row_pf = QtWidgets.QHBoxLayout()
+        self.pam_freq_slider = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
+        self.pam_freq_slider.setRange(1, 200)
+        self.pam_freq_slider.setValue(20)
+        self.pam_freq_spin = QtWidgets.QDoubleSpinBox()
+        self.pam_freq_spin.setRange(1, 200)
+        self.pam_freq_spin.setValue(20)
+        self.pam_freq_spin.setSingleStep(1)
+        self.pam_freq_slider.valueChanged.connect(lambda v: (self.pam_freq_spin.blockSignals(True), self.pam_freq_spin.setValue(v), self.pam_freq_spin.blockSignals(False), self.update_plots()))
+        self.pam_freq_spin.valueChanged.connect(lambda v: (self.pam_freq_slider.blockSignals(True), self.pam_freq_slider.setValue(int(v)), self.pam_freq_slider.blockSignals(False), self.update_plots()))
+        row_pf.addWidget(self.pam_freq_slider)
+        row_pf.addWidget(self.pam_freq_spin)
+        pam_inner.addLayout(row_pf)
+
+        pam_inner.addWidget(QtWidgets.QLabel("Ciclo de trabajo (%):"))
+        row_pd = QtWidgets.QHBoxLayout()
+        self.pam_duty_slider = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
+        self.pam_duty_slider.setRange(1, 99)
+        self.pam_duty_slider.setValue(30)
+        self.pam_duty_spin = QtWidgets.QDoubleSpinBox()
+        self.pam_duty_spin.setRange(1, 99)
+        self.pam_duty_spin.setValue(30)
+        self.pam_duty_spin.setSingleStep(1)
+        self.pam_duty_spin.setSuffix(" %")
+        self.pam_duty_slider.valueChanged.connect(lambda v: (self.pam_duty_spin.blockSignals(True), self.pam_duty_spin.setValue(v), self.pam_duty_spin.blockSignals(False), self.update_plots()))
+        self.pam_duty_spin.valueChanged.connect(lambda v: (self.pam_duty_slider.blockSignals(True), self.pam_duty_slider.setValue(int(v)), self.pam_duty_slider.blockSignals(False), self.update_plots()))
+        row_pd.addWidget(self.pam_duty_slider)
+        row_pd.addWidget(self.pam_duty_spin)
+        pam_inner.addLayout(row_pd)
+
+        pam_layout.addWidget(self.pam_container)
+        self.pam_container.setVisible(False)
+        self.chk_pam.stateChanged.connect(lambda st: self.pam_container.setVisible(st != 0))
+        self.side_layout.addWidget(pam_frame)
+        # ── End PAM Section ──
+
         self.scroll = QtWidgets.QScrollArea()
         self.scroll_content = QtWidgets.QWidget()
         self.scroll_layout = QtWidgets.QVBoxLayout(self.scroll_content)
@@ -241,7 +302,16 @@ class FFTTabWidget(QtWidgets.QWidget):
         self.p2.showGrid(x=True, y=True)
         self.p2.setLabel('bottom', 'Frecuencia', units='Hz')
 
+        # Ghost curve (unlimited signal) — dashed, semi-transparent
+        ghost_pen = pg.mkPen(color=(150, 150, 150, 100), width=1, style=QtCore.Qt.PenStyle.DashLine)
+        self.curve_t_ghost = self.p1.plot(pen=ghost_pen)
+
         self.curve_t = self.p1.plot(pen=pg.mkPen(GLOBAL_THEME['sig_main'], width=2))
+
+        # PAM modulated curve — distinct color
+        pam_pen = pg.mkPen(color='#00e5ff', width=2)
+        self.curve_t_pam = self.p1.plot(pen=pam_pen)
+
         self.curve_f = self.p2.plot(pen=pg.mkPen(GLOBAL_THEME['sig_main'], width=2))
 
         layout.addWidget(sidebar)
@@ -262,7 +332,6 @@ class FFTTabWidget(QtWidgets.QWidget):
             grid_pen = pg.mkPen(GLOBAL_THEME['grid'], width=1)
             plot.getAxis('bottom').setGrid(150) # enable
             plot.getAxis('left').setGrid(150)
-            # pyqtgraph's grid color is somewhat tied to the foreground/axis pen, but we can set it:
             plot.getAxis('bottom').setPen(pg.mkPen(GLOBAL_THEME['text']))
             
         self.update_plots()
@@ -284,19 +353,80 @@ class FFTTabWidget(QtWidgets.QWidget):
         widget.deleteLater()
         QtCore.QTimer.singleShot(10, self.update_plots)
 
+    def _generate_pam(self, total_y):
+        """Apply PAM modulation to the total signal."""
+        pam_freq = self.pam_freq_spin.value()
+        duty = self.pam_duty_spin.value() / 100.0  # fraction
+        pam_type = self.combo_pam.currentText()
+
+        # Period of the pulse train
+        T_pulse = 1.0 / pam_freq
+        # Position within each pulse period
+        t_mod = np.mod(self.t, T_pulse)
+        # Pulse is ON when t_mod < duty * T_pulse
+        pulse_on = t_mod < (duty * T_pulse)
+
+        if pam_type == "PAM Natural":
+            # Natural: signal passes through during pulse, zero otherwise
+            pam_signal = np.where(pulse_on, total_y, 0.0)
+        else:
+            # Instantaneous (Sample & Hold): sample at start of each pulse, hold that value
+            pam_signal = np.zeros_like(total_y)
+            # Find sample indices (start of each pulse period)
+            period_samples = int(T_pulse * self.fs)
+            if period_samples < 1:
+                period_samples = 1
+            for start in range(0, len(self.t), period_samples):
+                sample_val = total_y[start]
+                end = min(start + period_samples, len(self.t))
+                # Hold the sampled value during the ON portion of the pulse
+                for j in range(start, end):
+                    if pulse_on[j]:
+                        pam_signal[j] = sample_val
+
+        return pam_signal
+
     def update_plots(self):
         total_y = np.zeros_like(self.t)
+        total_y_full = np.zeros_like(self.t)
+        has_limits = False
+
         for s in self.signals:
             total_y += s.get_data(self.t)
+            total_y_full += s.get_data_unlimited(self.t)
+            if s.limits_enabled and s.active:
+                has_limits = True
 
-        n = len(self.t)
-        yf = np.fft.rfft(total_y)
-        xf = np.fft.rfftfreq(n, 1/self.fs)
-        mag = np.abs(yf) * (2.0 / n)
+        # Ghost curve: show full (unlimited) signal when limits are active
+        if has_limits:
+            ghost_pen = pg.mkPen(color=(150, 150, 150, 100), width=1, style=QtCore.Qt.PenStyle.DashLine)
+            self.curve_t_ghost.setData(self.t, total_y_full)
+            self.curve_t_ghost.setPen(ghost_pen)
+            self.curve_t_ghost.setVisible(True)
+        else:
+            self.curve_t_ghost.setVisible(False)
+
+        # Determine which signal to use for FFT
+        pam_active = self.chk_pam.isChecked()
+        if pam_active:
+            pam_signal = self._generate_pam(total_y)
+            self.curve_t_pam.setData(self.t, pam_signal)
+            self.curve_t_pam.setPen(pg.mkPen(color='#00e5ff', width=2))
+            self.curve_t_pam.setVisible(True)
+            fft_input = pam_signal
+        else:
+            self.curve_t_pam.setVisible(False)
+            fft_input = total_y
 
         self.curve_t.setData(self.t, total_y)
         self.curve_t.setPen(pg.mkPen(GLOBAL_THEME['sig_main'], width=2))
-        
+
+        # FFT
+        n = len(self.t)
+        yf = np.fft.rfft(fft_input)
+        xf = np.fft.rfftfreq(n, 1/self.fs)
+        mag = np.abs(yf) * (2.0 / n)
+
         self.curve_f.setData(xf[:200], mag[:200])
         self.curve_f.setPen(pg.mkPen(GLOBAL_THEME['sig_main'], width=2))
 
@@ -364,7 +494,7 @@ class ConvTabWidget(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
         self.fs = 250  
-        self.t = np.linspace(-2, 2, self.fs * 4, endpoint=False)
+        self.t = np.linspace(-5, 5, self.fs * 10, endpoint=False)
         self.dt = self.t[1] - self.t[0]
         self.signals = [] 
 
